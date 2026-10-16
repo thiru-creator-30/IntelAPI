@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main, arena/**]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: intelapi
+          POSTGRES_PASSWORD: intelapi
+          POSTGRES_DB: intelapi
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U intelapi -d intelapi"
+          --health-interval 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install --upgrade pip
+      - working-directory: apps/api
+        run: pip install -e .[dev]
+      - working-directory: apps/api
+        env:
+          DATABASE_URL: postgresql+psycopg://intelapi:intelapi@localhost:5432/intelapi
+          SESSION_SECRET_KEY: ci-secret-key-please-change
+          CSRF_SECRET: ci-csrf-secret-please-change
+          ENCRYPTION_KEY: change-me-change-me-change-me-change-me-32=
+          GOOGLE_CLIENT_ID: test-client-id
+        run: |
+          alembic upgrade head
+          pytest -q
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - working-directory: apps/web
+        run: npm install
+      - working-directory: apps/web
+        run: npm run lint --if-present
+      - working-directory: apps/web
+        run: npm run typecheck
+      - working-directory: apps/web
+        run: npm run build
+
+  type-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: pip install --upgrade pip
+      - working-directory: apps/api
+        run: pip install -e .
+      - run: python scripts/export_openapi.py > /tmp/openapi.json
+      - run: python scripts/generate_api_types.py /tmp/openapi.json /tmp/api-schema.ts
+      - run: diff -u apps/web/src/services/generated/api-schema.ts /tmp/api-schema.ts

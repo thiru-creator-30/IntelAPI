@@ -218,3 +218,22 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# IntelAPI project-specific
+.env
+.env.*
+!.env.example
+apps/api/.venv/
+apps/web/node_modules/
+apps/web/dist/
+apps/api/**/__pycache__/
+*.pyc
+apps/api/.pytest_cache/
+apps/api/.mypy_cache/
+apps/api/.ruff_cache/
+apps/api/alembic/versions/__pycache__/
+pgdata/
+apps/web/.vite/
+apps/api/openapi.json
+apps/api/**/*.egg-info/
+apps/web/tsconfig.tsbuildinfo
